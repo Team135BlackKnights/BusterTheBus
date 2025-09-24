@@ -13,9 +13,10 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
+
 public class Robot extends TimedRobot {
   private DifferentialDrive m_myRobot;
-  private XboxController m_controller;
+  private XboxController m_controller = new XboxController(0);;
 
   private final PWMVictorSPX m_leftMotor = new PWMVictorSPX(4);
   private final PWMVictorSPX m_rightMotor = new PWMVictorSPX(5);
@@ -45,10 +46,9 @@ public class Robot extends TimedRobot {
     m_myRobot = new DifferentialDrive(m_leftMotor, m_rightMotor);
     m_rightMotor.setInverted(true);
 
-    m_controller = new XboxController(0);
 
     // Lights toggle on A
-    aButtonTrigger.whenActive(new InstantCommand(() -> flashYellow = true))
+    aButtonTrigger.whenActive(new InstantCommand(() -> {flashYellow = true; System.out.println("hi");}))
         .whenInactive(new InstantCommand(() -> flashYellow = false));
 
     // Servo button bindings
@@ -65,6 +65,12 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
+    // Tank drive
+    double leftPower = -m_controller.getLeftY();
+    double rightPower = -m_controller.getRightY();
+    m_myRobot.tankDrive(leftPower, rightPower);
+
+
     if (!flashTimer.advanceIfElapsed(0.5)) {
       return;
     }
@@ -88,11 +94,6 @@ public class Robot extends TimedRobot {
       }
 
     }
-
-    // Tank drive
-    double leftPower = -m_controller.getLeftY();
-    double rightPower = -m_controller.getRightY();
-    m_myRobot.tankDrive(leftPower, rightPower);
   }
 
   private void toggleServo(Servo servo, java.util.function.Supplier<Boolean> getter,
