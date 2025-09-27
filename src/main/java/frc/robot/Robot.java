@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import java.util.Random;
 
 
 public class Robot extends TimedRobot {
@@ -29,8 +30,14 @@ public class Robot extends TimedRobot {
   private final PWMVictorSPX yellowLight = new PWMVictorSPX(6);
   private final PWMVictorSPX redLight = new PWMVictorSPX(7);
 
+  private Random random = new Random();
   private final Timer flashTimer = new Timer();
   private boolean flashYellow = false;
+
+  private final Timer blinkTimer = new Timer();
+  private double timeBetweenBlinks;
+  private final double blinkGapAverage = 5; //Seconds gap between
+  private final double blinkGapStDev = 1.5; //Seconds gap between
 
   private boolean eyebrowLeftUp = false;
   private boolean eyebrowRightUp = false;
@@ -48,29 +55,50 @@ public class Robot extends TimedRobot {
 
 
     // Lights toggle on A
-    aButtonTrigger.whenActive(new InstantCommand(() -> {flashYellow = true; System.out.println("hi");}))
+    aButtonTrigger.whenActive(new InstantCommand(() -> flashYellow = true))
         .whenInactive(new InstantCommand(() -> flashYellow = false));
 
     // Servo button bindings
-    aButtonTrigger
-        .whenActive(new InstantCommand(() -> toggleServo(eyebrowLeft, () -> eyebrowLeftUp, v -> eyebrowLeftUp = v)));
-    bButtonTrigger
-        .whenActive(new InstantCommand(() -> toggleServo(eyebrowRight, () -> eyebrowRightUp, v -> eyebrowRightUp = v)));
     xButtonTrigger.whenActive(new InstantCommand(() -> toggleServo(stopArm, () -> stopArmOut, v -> stopArmOut = v)));
     leftBumperTrigger.whenActive(
         new InstantCommand(() -> toggleServo(mysteryThing, () -> mysteryExtended, v -> mysteryExtended = v)));
 
+    timeBetweenBlinks = 1;
+
+    blinkTimer.start();
     flashTimer.start();
   }
 
   @Override
   public void teleopPeriodic() {
+    CommandScheduler.getInstance.run();
     // Tank drive
     double leftPower = -m_controller.getLeftY();
     double rightPower = -m_controller.getRightY();
     m_myRobot.tankDrive(leftPower, rightPower);
 
 
+    //the blink
+    if(blinkTimer.advanceIfElapsed(timeBetweenBlinks)){
+      timeBetweenBlinks = eyebrowLeftUp ? 
+        //If the eye is up, it will go down and the next gap will be short to complete the blink
+        0.25 :
+        //If the eye is down, it will go up and randomly choose a next reasonable value for the gap
+        Math.clamp(
+          random.nextGaussian() * blinkGapStDev + blinkGapAverage
+          , 1
+          , 15
+        ); 
+      if(eyebrowRightUp == eyebrowLeftUp){ // Make sure the right eye is in sync with the left
+        toggleServo(eyebrowRight, () -> eyebrowRightUp, v -> eyebrowRightUp = v);
+      }
+      toggleServo(eyebrowLeft, () -> eyebrowLeftUp, v -> eyebrowLeftUp = v);
+    }
+
+
+
+
+    //Do nothing except flash lights past this point ------------
     if (!flashTimer.advanceIfElapsed(0.5)) {
       return;
     }
